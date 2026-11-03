@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Main web application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://api:8787
+      - VITE_WS_URL=ws://api:8787
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages/core/node_modules
+      - /app/packages/ui/node_modules
+      - /app/apps/web/node_modules
+    depends_on:
+      - api
+      - redis
+    command: pnpm dev --filter=@propedge/web
+
+  # API server (Cloudflare Workers compatible)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8787:8787"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/propedge
+      - REDIS_URL=redis://redis:6379
+      - ODDS_API_KEY=${ODDS_API_KEY}
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      - db
+      - redis
+    command: pnpm dev --filter=@propedge/api
+
+  # Background worker for odds ingestion
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/propedge
+      - REDIS_URL=redis://redis:6379
+      - ODDS_API_KEY=${ODDS_API_KEY}
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    depends_on:
+      - db
+      - redis
+    command: pnpm dev --filter=@propedge/worker
+
+  # PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=propedge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Adminer for database management
+  adminer:
+    image: adminer:4.8
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: propedge-network

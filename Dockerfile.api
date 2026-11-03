@@ -1,0 +1,42 @@
+# API Server - Cloudflare Workers compatible (Hono)
+FROM node:22-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@9.10.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/ui/package.json ./packages/ui/
+COPY apps/api/package.json ./apps/api/
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+RUN pnpm build --filter=@propedge/api
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@9.10.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/core/package.json ./packages/core/
+COPY apps/api/package.json ./apps/api/
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder /app/packages/core/dist ./packages/core/dist
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+USER nextjs
+
+EXPOSE 8787
+
+ENV NODE_ENV=production
+ENV PORT=8787
+
+CMD ["node", "apps/api/dist/index.mjs"]

@@ -1,0 +1,37 @@
+{
+  "name": "propedge",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=@propedge/web",
+    "build:api": "turbo run build --filter=@propedge/api",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:ui": "turbo run test:ui",
+    "db:push": "turbo run db:push",
+    "db:studio": "turbo run db:studio",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@tanstack/router-plugin": "1.60.0",
+    "@types/node": "^22.7.0",
+    "prettier": "^3.3.3",
+    "turbo": "^2.2.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.10.0"
+}
